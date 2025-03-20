@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>题目展示</title>
+    <style>
+        .question {
+            border: 1px solid #ddd;
+            margin: 10px;
+            padding: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>上传并展示题目</h1>
+    <input type="file" id="fileInput" accept=".json">
+    <button id="loadBtn">加载题目</button>
+    <div id="questions"></div>
+    <button id="downloadBtn" style="display:none;">下载题目及答案</button>
+
+    <script src="https://cdn.jsdelivr.net/npm/html-docx-js@0.3.1/dist/html-docx.min.js"></script>
+    <script>
+        document.getElementById('loadBtn').addEventListener('click', function() {
+            const fileInput = document.getElementById('fileInput').files[0];
+            if (!fileInput) {
+                alert('请选择一个JSON文件');
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                const content = event.target.result;
+                const data = JSON.parse(content);
+                const questionsList = data.data.questionsList;
+                displayQuestions(questionsList);
+                document.getElementById('downloadBtn').style.display = 'block';
+                document.getElementById('downloadBtn').onclick = function() {
+                    downloadQuestions(questionsList);
+                };
+            };
+            reader.readAsText(fileInput);
+        });
+
+        function displayQuestions(questionsList) {
+            const questionsDiv = document.getElementById('questions');
+            questionsDiv.innerHTML = ''; // 清空之前的内容
+            questionsList.forEach((question, index) => {
+                const questionDiv = document.createElement('div');
+                questionDiv.className = 'question';
+                let optionsHTML = '';
+                // 动态处理多个选项
+                for (let i = 1; i <= 15; i++) {
+                    const optionText = question[`option${i}Text`];
+                    if (optionText) {
+                        optionsHTML += `<div>${String.fromCharCode(64 + i)}. ${optionText}</div>`;
+                    }
+                }
+                questionDiv.innerHTML = `
+                    <h3>题目 ${index + 1}</h3>
+                    <div>${question.questionTitleText || ''}</div>
+                    <div>${question.questionNameText || ''}</div>
+                    ${optionsHTML ? `<div>选项：</div>${optionsHTML}` : ''}
+                    <div>正确答案：${question.correctText || ''}</div>
+                    <div>解析：${question.analysisText || ''}</div>
+                    <div>难度：${question.difficulty || ''}</div>
+                `;
+                questionsDiv.appendChild(questionDiv);
+            });
+        }
+
+        function downloadQuestions(questionsList) {
+            const content = questionsList.map((question, index) => {
+                let optionsText = '';
+                // 动态处理多个选项
+                for (let i = 1; i <= 15; i++) {
+                    const optionText = question[`option${i}Text`];
+                    if (optionText) {
+                        optionsText += `${String.fromCharCode(64 + i)}. ${optionText}\n`;
+                    }
+                }
+                return `
+                <h3>题目 ${index + 1}</h3>
+                <div>${question.questionTitleText || ''}</div>
+                <div>${question.questionNameText || ''}</div>
+                ${optionsText ? `<div>选项：</div>${optionsText}` : ''}
+                <div>正确答案：${question.correctText || ''}</div>
+                <div>解析：${question.analysisText || ''}</div>
+                <div>难度：${question.difficulty || ''}</div>
+                `;
+            }).join('');
+
+            const converted = window.htmlDocx.asBlob(content);
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(converted);
+            link.download = 'questions.doc';
+            link.click();
+        }
+    </script>
+</body>
+</html>
